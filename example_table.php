@@ -1,6 +1,6 @@
 <?php
-if (isset($_GET['station'])) {
-	$station = $_GET['station'];
+if (isset($_GET["station"])) {
+	$station = $_GET["station"];
 } else {
 	$station = "Hannover Hbf";
 }
@@ -20,7 +20,7 @@ $station = $db->getStationByName($station)[0];
 		body {
 			background: #000080;
 			color: #FFF;
-			font-family: 'Arial';
+			font-family: "Arial";
 			font-size: 18pt;
 		}
 		#header {
