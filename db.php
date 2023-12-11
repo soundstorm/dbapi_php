@@ -63,6 +63,7 @@ class DeutscheBahnStation {
 	private $x;
 	private $y;
 	private $type;
+	private $filter = 1023;
 
 	public function __construct($name, $extid, $extstnr, $x, $y, $type) {
 		$this->name = $name;
@@ -89,9 +90,22 @@ class DeutscheBahnStation {
 		return $this->type;
 	}
 
+	public function setFilter($ice = 1, $ic_ec = 0, $ir = 0, $re = 0, $s = 0, $bus = 0, $ship = 0, $u = 0, $str = 0, $ast = 0) {
+		$this->filter =
+			($ice   ? 0x200 : 0) +
+			($ic_ec ? 0x100 : 0) +
+			($ir    ? 0x080 : 0) +
+			($re    ? 0x040 : 0) +
+			($s     ? 0x020 : 0) +
+			($bus   ? 0x010 : 0) +
+			($ship  ? 0x008 : 0) +
+			($u     ? 0x004 : 0) +
+			($str   ? 0x002 : 0) +
+			($ast   ? 0x001 : 0);
+	}
+
 	private function getStationBoard($type, $num, $time, $date, $target) {
-		$filter = 1023;
-		$query  = "start=yes&L=vs_java3&productsFilter=".sprintf("%010d", decbin($filter));
+		$query  = "start=yes&L=vs_java3&productsFilter=".sprintf("%010d", decbin($this->filter));
 		$query .= "&input={$this->extstnr}";
 		$query .= "&boardType={$type}";
 		if (!is_null($num)) {
@@ -106,7 +120,7 @@ class DeutscheBahnStation {
 		if (!is_null($target)) {
 			$query .= "&dirInput={$target}";
 		}
-		print("https://reiseauskunft.bahn.de/bin/stboard.exe/dn?{$query}");
+		
 		$ch = curl_init("https://reiseauskunft.bahn.de/bin/stboard.exe/dn?{$query}");
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 		$ret = curl_exec($ch);
