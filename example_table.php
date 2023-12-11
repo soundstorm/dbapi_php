@@ -60,7 +60,7 @@ $station = $db->getStationByName($station)[0];
 			padding-right: 20px;
 		}
 		.time {
-			width: 180px;
+			width: 210px;
 		}
 		.dest.cancel .name {
 			text-decoration: line-through;
