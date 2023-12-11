@@ -157,7 +157,7 @@ class DeutscheBahnStation {
 					$att["FPTIME"],
 					$att["FPDATE"],
 					$att["DELAY"],
-					$att["E_DELAY"],
+					array_key_exists("E_DELAY", $att) ? intval($att["E_DELAY"]) : 0,
 					$att["DELAYREASON"],
 					array_key_exists("PLATFORM", $att) ? $att["PLATFORM"] : "-",
 					array_key_exists("NEWPL", $att) ? $att["PLATFORM"] : "-",
