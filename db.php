@@ -6,13 +6,14 @@ class DeutscheBahnJourney {
 	private $delay;
 	private $delayReason;
 	private $platform;
+	private $newPlatform;
 	private $direction;
 	private $target;
 	private $depStation;
 	private $product;
 	private $line;
 
-	public function __construct($time, $date, $delay, $delayReason, $platform, $direction, $target, $depStation, $product, $line) {
+	public function __construct($time, $date, $delay, $delayReason, $platform, $newPlatform, $direction, $target, $depStation, $product, $line) {
 		$this->time        = $time;
 		$this->date        = $date;
 		$this->delay       = $delay;
@@ -39,6 +40,12 @@ class DeutscheBahnJourney {
 	public function getPlatform() {
 		return $this->platform;
 	}
+	public function hasNewPlatform() {
+		return !is_null($this->newPlatform);
+	}
+	public function getNewPlatform() {
+		return $this->newPlatform;
+	}
 	public function getDirection() {
 		return $this->direction;
 	}
@@ -53,6 +60,9 @@ class DeutscheBahnJourney {
 	}
 	public function getLine() {
 		return $this->line;
+	}
+	public function isCancelled() {
+		return $this->delay == "cancel";
 	}
 }
 
@@ -144,6 +154,7 @@ class DeutscheBahnStation {
 					$att["DELAY"],
 					$att["DELAYREASON"],
 					array_key_exists("PLATFORM", $att) ? $att["PLATFORM"] : "-",
+					array_key_exists("NEWPL", $att) ? $att["PLATFORM"] : "-",
 					$att["DIR"],
 					array_key_exists("TARGET", $att) ? $att["TARGET"] : "-",
 					array_key_exists("DEPSTATION", $att) ? $att["DEPSTATION"] : "-",
