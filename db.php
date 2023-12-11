@@ -4,6 +4,7 @@ class DeutscheBahnJourney {
 	private $time;
 	private $date;
 	private $delay;
+	private $delayNum;
 	private $delayReason;
 	private $platform;
 	private $newPlatform;
@@ -13,10 +14,11 @@ class DeutscheBahnJourney {
 	private $product;
 	private $line;
 
-	public function __construct($time, $date, $delay, $delayReason, $platform, $newPlatform, $direction, $target, $depStation, $product, $line) {
+	public function __construct($time, $date, $delay, $delayNum, $delayReason, $platform, $newPlatform, $direction, $target, $depStation, $product, $line) {
 		$this->time        = $time;
 		$this->date        = $date;
 		$this->delay       = $delay;
+		$this->delayNum    = $delayNum;
 		$this->delayReason = $delayReason;
 		$this->platform    = $platform;
 		$this->direction   = $direction;
@@ -33,6 +35,9 @@ class DeutscheBahnJourney {
 	}
 	public function getDelay() {
 		return $this->delay;
+	}
+	public function getDelayNum() {
+		return $this->delayNum;
 	}
 	public function getDelayReason() {
 		return $this->delayReason;
@@ -152,6 +157,7 @@ class DeutscheBahnStation {
 					$att["FPTIME"],
 					$att["FPDATE"],
 					$att["DELAY"],
+					$att["E_DELAY"],
 					$att["DELAYREASON"],
 					array_key_exists("PLATFORM", $att) ? $att["PLATFORM"] : "-",
 					array_key_exists("NEWPL", $att) ? $att["PLATFORM"] : "-",
