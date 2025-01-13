@@ -86,15 +86,15 @@ foreach ($station->getDepatures($numEntries) as $dep) {?>
 	<div class="dep">
 		<div class="time">
 			<div class="firstrow">
-				<div class="sched"><?=$dep->getTime()?></div>
-				<div class="del"><?=$dep->isCancelled()?"":$dep->getDelay()?></div>
+				<div class="sched"><?=$dep->getTime()->format("H:i")?></div>
+				<div class="del"><?=$dep->isCancelled()?"":($dep->getDelayNum()?$dep->getDelayNum():"")?></div>
 			</div>
-				<div class="prod"><?=$dep->getProduct()?> <?=$dep->getLine()?></div>
-				<div class="eta"><?=$dep->isCancelled() || !$dep->getDelayNum()?"":date("H:i",strtotime("+{$dep->getDelayNum()} minutes", strtotime($dep->getTime().":00")))?></div>
+				<div class="prod"><?=$dep->getProductShort()?> <?=$dep->getLine()?></div>
+				<div class="eta"><?=$dep->isCancelled() || !$dep->getDelayNum()?"":$dep->getRealTime()->format("H:i")?></div>
 		</div>
 		<div class="dest<?=$dep->isCancelled()?" cancel":""?>">
 			<div class="name"><?=$dep->getDirection()?></div>
-			<div class="delayCause"><?=$dep->getDelayReason()?></div>
+			<div class="delayCause"><?=count($dep->getNotes()) && isset($dep->getNotes()[0]->text)?$dep->getNotes()[0]->text:""?></div>
 		</div>
 		<div class="plat<?=$dep->hasNewPlatform()?" newPl":""?>"><?=$dep->hasNewPlatform()?$dep->getNewPlatform():$dep->getPlatform()?></div>
 	</div>

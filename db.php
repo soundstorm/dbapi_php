@@ -2,221 +2,435 @@
 
 class DeutscheBahnJourney {
 	private $time;
-	private $date;
+	private $realTime;
 	private $delay;
-	private $delayNum;
-	private $delayReason;
+	private $notes;
 	private $platform;
 	private $newPlatform;
-	private $direction;
 	private $target;
 	private $depStation;
 	private $product;
+	private $productShort;
 	private $line;
 
-	public function __construct($time, $date, $delay, $delayNum, $delayReason, $platform, $newPlatform, $direction, $target, $depStation, $product, $line) {
-		$this->time        = $time;
-		$this->date        = $date;
-		$this->delay       = $delay;
-		$this->delayNum    = $delayNum;
-		$this->delayReason = $delayReason;
-		$this->platform    = $platform;
-		$this->direction   = $direction;
-		$this->target      = $target;
-		$this->depStation  = $depStation;
-		$this->product     = $product;
-		$this->line        = $line;
+	public function __construct($time, $realTime, $delay, $notes, $platform, $newPlatform, $depStation, $target, $product, $line) {
+		$this->time         = $time;
+		$this->realTime     = $realTime;
+		$this->delay        = $delay;
+		$this->notes        = $notes;
+		$this->platform     = $platform;
+		$this->newPlatform  = $newPlatform;
+		$this->depStation   = $depStation;
+		$this->target       = $target;
+		$this->product      = $product;
+		$this->productShort = substr($line, 0, strpos($line, " "));
+		$this->line         = substr($line, strpos($line, " ") + 1);
 	}
+	/*
+	* Get arrival/depature as DateTime
+	*/
 	public function getTime() {
 		return $this->time;
 	}
-	public function getDate() {
-		return $this->date;
+	/*
+	* Get real time arrival/depature as DateTime
+	*/
+	public function getRealTime() {
+		return $this->realTime;
 	}
+	/*
+	* Get delay as DateTimeInterface
+	*/
 	public function getDelay() {
 		return $this->delay;
 	}
+	/*
+	* Calculate delay in minutes
+	*/
 	public function getDelayNum() {
-		return $this->delayNum;
+		return (int)$this->getDelay()->format("%H") * 60 + (int)$this->getDelay()->format("%I");
 	}
-	public function getDelayReason() {
-		return $this->delayReason;
+	/*
+	* Get notes like delay cause or outage
+	*/
+	public function getNotes() {
+		return $this->notes;
 	}
+	/*
+	* Get regular platform, '-' if no platforms are defined
+	*/
 	public function getPlatform() {
 		return $this->platform;
 	}
+	/*
+	* Check if platform is changed
+	*/
 	public function hasNewPlatform() {
 		return !is_null($this->newPlatform);
 	}
+	/*
+	* Get new Platform if available, null otherwise
+	*/
 	public function getNewPlatform() {
 		return $this->newPlatform;
 	}
-	public function getDirection() {
-		return $this->direction;
-	}
+	/*
+	* Get service direction
+	*/
 	public function getTarget() {
 		return $this->target;
 	}
+	/*
+	* Get service direction
+	*/
+	public function getDirection() {
+		return $this->target;
+	}
+	/*
+	* Get Station, may differ from requested Station like ZOB or (U), but is directly associated
+	*/
 	public function getDepStation() {
 		return $this->depStation;
 	}
+	/*
+	* Get Generic Line Product e.g. STR/RE
+	*/
 	public function getProduct() {
 		return $this->product;
 	}
+	/*
+	* Get Line Product e.g. STB/FLX
+	*/
+	public function getProductShort() {
+		return $this->productShort;
+	}
+	/*
+	* Get Line Number e.g. 8
+	*/
 	public function getLine() {
 		return $this->line;
 	}
+	/*
+	* Check, if service is cancelled
+	*/
 	public function isCancelled() {
-		return $this->delay == "cancel";
+		foreach ($this->notes as $note) {
+			if (isset($note->text) && $note->text == "Halt entfällt") return 1;
+		}
+		return 0;
 	}
 }
 
 class DeutscheBahnStation {
 	private $name;
-	private $extid;
-	private $extstnr;
-	private $x;
-	private $y;
-	private $type;
-	private $filter = 1023;
+	private $stationId;
+	private $locationId;
+	private $coordinates;
+	private $locationType;
+	private $products;
+	private $evaNr;
+	private $filter = Array("HOCHGESCHWINDIGKEITSZUEGE","INTERCITYUNDEUROCITYZUEGE","INTERREGIOUNDSCHNELLZUEGE","NAHVERKEHRSONSTIGEZUEGE","SBAHNEN","BUSSE","SCHIFFE","UBAHN","STRASSENBAHN","ANRUFPFLICHTIGEVERKEHRE");
 
-	public function __construct($name, $extid, $extstnr, $x, $y, $type) {
+	public function __construct($name, $stationId, $locationId, $coordinates, $products, $locationType, $evaNr) {
 		$this->name = $name;
-		$this->extid = $extid;
-		$this->extstnr = $extstnr;
-		$this->x = $x;
-		$this->y = $y;
-		$this->type = $type;
+		$this->stationId = $stationId;
+		$this->locationId = $locationId;
+		$this->coordinates = $coordinates;
+		$this->products = $products;
+		$this->locationType = $locationType;
+		$this->evaNr = $evaNr;
 	}
 
+	/*
+	* Get Station Name
+	*/
 	public function getName() {
 		return $this->name;
 	}
+	/*
+	* Get Station Identifier
+	*/
 	public function getStationID() {
-		return $this->extid;
+		return $this->stationId;
 	}
+	/*
+	* Get Station Identifier, reverse compatibility
+	*/
 	public function getStationNumber() {
-		return $this->extstnr;
+		return $this->locationId;
 	}
+	/*
+	* Array of longitude and latitude
+	*/
 	public function getCoordinates() {
-		return Array($this->x, $this->y);
+		return $this->coordinates;
 	}
+	/*
+	* Only ST allowed
+	*/
 	public function getStationType() {
-		return $this->type;
+		return $this->locationType;
 	}
 
+	/*
+	* Get services/products available at station, if queried by getStationByName
+	*/
+	public function getStationProducts() {
+		return $this->products;
+	}
+
+	/*
+	* Set filters for services.
+	*/
 	public function setFilter($ice = 1, $ic_ec = 0, $ir = 0, $re = 0, $s = 0, $bus = 0, $ship = 0, $u = 0, $str = 0, $ast = 0) {
-		$this->filter =
-			($ice   ? 0x200 : 0) +
-			($ic_ec ? 0x100 : 0) +
-			($ir    ? 0x080 : 0) +
-			($re    ? 0x040 : 0) +
-			($s     ? 0x020 : 0) +
-			($bus   ? 0x010 : 0) +
-			($ship  ? 0x008 : 0) +
-			($u     ? 0x004 : 0) +
-			($str   ? 0x002 : 0) +
-			($ast   ? 0x001 : 0);
+		$filter = Array();
+		if ($ice) $filter[] = "HOCHGESCHWINDIGKEITSZUEGE";
+		if ($ic_ec) $filter[] = "INTERCITYUNDEUROCITYZUEGE";
+		if ($ir) $filter[] = "INTERREGIOUNDSCHNELLZUEGE";
+		if ($re) $filter[] ="NAHVERKEHRSONSTIGEZUEGE";
+		if ($s) $filter[] ="SBAHNEN";
+		if ($bus) $filter[] = "BUSSE";
+		if ($ship) $filter[] = "SCHIFFE";
+		if ($u) $filter[] = "UBAHN";
+		if ($str) $filter[] = "STRASSENBAHN";
+		if ($ast) $filter[] = "ANRUFPFLICHTIGEVERKEHRE";
+		$this->filter = $filter;
 	}
 
-	private function getStationBoard($type, $num, $time, $date, $target) {
-		$query  = "start=yes&L=vs_java3&productsFilter=".sprintf("%010d", decbin($this->filter));
-		$query .= "&input={$this->extstnr}";
-		$query .= "&boardType={$type}";
-		if (!is_null($num)) {
-			$query .= "&maxJourneys={$num}";
+	/* Currently not working.
+	*/
+	private function getConnection($dest, $date, $type) {
+		if (is_null($date)) {
+			$date = new DateTime();
 		}
-		if (!is_null($time)) {
-			$query .= "&time={$time}";
-		}
-		if (!is_null($date)) {
-			$query .= "&date={$date}";
-		}
-		if (!is_null($target)) {
-			$query .= "&dirInput={$target}";
-		}
-		
-		$ch = curl_init("https://reiseauskunft.bahn.de/bin/stboard.exe/dn?{$query}");
+		$headers = Array(
+			"User-Agent: Bahn-Foo",
+			"Content-Type: application/x.db.vendo.mob.verbindungssuche.v8+json",
+			"Accept: application/x.db.vendo.mob.verbindungssuche.v8+json",
+			"X-Correlation-ID: FOO",
+		);
+		$req = Array();
+		$req['bahnBonusInfo'] = Array(
+			'activeBonusPoints' => 0,
+			'statusLevel' => 0
+		);
+		$req['einstiegsTypList'] = Array("STANDARD");
+		$req['fahrverguenstigungen'] = Array(
+			"deutschlandTicketVorhanden" => false,
+			"nurDeutschlandTicketVerbindungen" => false
+		);
+		$req['klasse'] = "KLASSE_2";
+		$req['reiseHin'] = Array(
+			"wunsch" => Array(
+				"abgangsLocationId" => preg_replace('/p=[\d]*/','p=1706553807', str_replace("U=81","U=80",$this->locationId)),
+				"economic" => true,
+				"verkehrsmittel" => $this->filter,
+				"viaLocations" => Array(),
+				"zeitWunsch" => Array(
+					"reiseDatum" => $date->format("Y-m-d\TH:i:sP"),
+					"zeitPunktArt" => $type
+				),
+				"zielLocationId" => preg_replace('/p=[\d]*/','p=1706553807',str_replace("U=81","U=80", substr($dest, 0, strpos($dest, "i="))))
+			)
+		);
+		$req['reisendenProfil'] = Array();
+		$req['reisendenProfil']['reisende'] = Array();
+		$req['reisendenProfil']['reisende'][0] = Array(
+			"ermaessigungen" => Array("KEINE_ERMAESSIGUNG KLASSENLOS"),
+			"reisendenTyp" => "ERWACHSENER"
+		);
+		$req['reservierungsKontingenteVorhanden'] = false;
+		print_r($headers);
+		$json = json_encode($req);
+		$ch = curl_init("https://app.vendo.noncd.db.de/mob/angebote/fahrplan");
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+		curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+		curl_setopt($ch, CURLOPT_POSTFIELDS, $json);
+		curl_setopt($ch, CURLOPT_VERBOSE, true);
 		$ret = curl_exec($ch);
-		$ret = "<?xml version=\"1.0\" encoding=\"iso-8859-1\" ?><ResC xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">" . $ret . "</ResC>";
+		return Null;
+	}
 
-		$parser = xml_parser_create();
-		xml_parse_into_struct($parser, $ret, $values);
-		xml_parser_free($parser);
+	/* Currently not working.
+	*/
+	public function getConnectionDepature($dest, $date = Null) {
+		return $this->getJourney($dest, $date, "ABFAHRT");
+	}
+	/* Currently not working.
+	*/
+	public function getConnectionArrival($dest, $date = Null) {
+		return $this->getJourney($dest, $date, "ANKUNFT");
+	}
 
-		$journey = Array();
-		foreach ($values as $value) {
-			if ($value["tag"] == "JOURNEY" && $value["type"] != "close") {
-				$att = $value["attributes"];
-				$p = substr($att["PROD"], 0, strpos($att["PROD"], "#"));
-				preg_match("/([a-zA-Z]+)\s*(\d*)#/", $att["PROD"], $m);
-				$prod = count($m) == 3 ? $m[1] : '-';
-				$line = count($m) == 3 ? $m[2] : '-';
-				$journeys[] = new DeutscheBahnJourney(
-					$att["FPTIME"],
-					$att["FPDATE"],
-					$att["DELAY"],
-					array_key_exists("E_DELAY", $att) ? intval($att["E_DELAY"]) : 0,
-					$att["DELAYREASON"],
-					array_key_exists("PLATFORM", $att) ? $att["PLATFORM"] : "-",
-					array_key_exists("NEWPL", $att) ? $att["PLATFORM"] : "-",
-					$att["DIR"],
-					array_key_exists("TARGET", $att) ? $att["TARGET"] : "-",
-					array_key_exists("DEPSTATION", $att) ? $att["DEPSTATION"] : "-",
-					$prod,
-					$line
-				);
+	/*
+	* Query services at location
+	*/
+	public function getLocation() {
+		$headers = Array(
+			"User-Agent: Bahn-Foo",
+			"Accept: application/x.db.vendo.mob.location.v3+json",
+			"X-Correlation-ID: FOO",
+		);
+		$ch = curl_init("https://app.vendo.noncd.db.de/mob/location/details/".$this->evaNr);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+		curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+		$ret = curl_exec($ch);
+		return json_decode($ret);
+	}
+
+	/*
+	* @param type    ankunft|abfahrt
+	* @param num     Unused, backwards compatibility, getting all depatures within 1h by default
+	* @param time    Time as H:i
+	* @param date    Date as Y-m-d
+	* @param target  Unused, backwards compatibility, cannot set direction
+	*/
+	private function getStationBoard($type, $num, $time, $date, $target) {
+		$headers = Array(
+			"User-Agent: Bahn-Foo",
+			"Content-Type: application/x.db.vendo.mob.bahnhofstafeln.v2+json",
+			"Accept: application/x.db.vendo.mob.bahnhofstafeln.v2+json",
+			"X-Correlation-ID: FOO",
+		);
+		$req = Array();
+		if (is_null($date)) {
+			$req['datum'] = date('Y-m-d');
+		} else {
+			$req['datum'] = $date;
+		}
+		if (is_null($date)) {
+			$req['anfragezeit'] = date('H:i');
+		} else {
+			$req['anfragezeit'] = $time;
+		}
+		$req['ursprungsBahnhofId'] = $this->locationId;
+		$req['verkehrsmittel'] = $this->filter;
+		$json = json_encode($req);
+		$ch = curl_init("https://app.vendo.noncd.db.de/mob/bahnhofstafel/".$type);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+		curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+		curl_setopt($ch, CURLOPT_POSTFIELDS, $json);
+		$ret = curl_exec($ch);
+
+		$jsonJourneys = json_decode($ret);
+		if ($type == "ankunft") {
+			$jsonJourneys = $jsonJourneys->bahnhofstafelAnkunftPositionen;
+		} else {
+			$jsonJourneys = $jsonJourneys->bahnhofstafelAbfahrtPositionen;
+		}
+		foreach ($jsonJourneys as $jsonJourney) {
+			if ($type == "ankunft") {
+				$t = new DateTime($jsonJourney->ankunftsDatum);
+				if (isset($jsonJourney->ezAnkunftsDatum)) {
+					$rt = new DateTime($jsonJourney->ezAnkunftsDatum);
+				} else {
+					$rt = $t;
+				}
+				$dir = isset($jsonJourney->abgangsOrt) ? $jsonJourney->abgangsOrt : "-";
+			} else {
+				$t = new DateTime($jsonJourney->abgangsDatum);
+				if (isset($jsonJourney->ezAbgangsDatum)) {
+					$rt = new DateTime($jsonJourney->ezAbgangsDatum);
+				} else {
+					$rt = $t;
+				}
+				$dir = isset($jsonJourney->richtung) ? $jsonJourney->richtung : "-";
 			}
+			$del = date_diff($t, $rt);
+			$depStation = new DeutscheBahnStation(
+				$jsonJourney->abfrageOrt->name,
+				(isset($jsonJourney->abfrageOrt->stationId) ? $jsonJourney->abfrageOrt->stationId : -1),
+				$jsonJourney->abfrageOrt->locationId,
+				Array("longitude"=>-1,"latitude"=>-1),
+				-1,
+				"",
+				0
+			);
+			//preg_match("/([a-zA-Z]+)\s*(\d*)#/", $att["PROD"], $m);
+			//$prod = count($m) == 3 ? $m[1] : '-';
+			//$line = count($m) == 3 ? $m[2] : '-';
+
+			$journeys[] = new DeutscheBahnJourney(
+				$t,
+				$rt,
+				$del,
+				$jsonJourney->echtzeitNotizen,
+				isset($jsonJourney->gleis) ? $jsonJourney->gleis : '-',
+				isset($jsonJourney->ezGleis) ? $jsonJourney->ezGleis : NULL,
+				$depStation,
+				$dir,
+				$jsonJourney->produktGattung,
+				$jsonJourney->mitteltext
+			);
 		}
 
 		return $journeys;
 	}
 
+	/*
+	* @param num     Unused, backwards compatibility, getting all depatures within 1h by default
+	* @param time    Time as H:i
+	* @param date    Date as Y-m-d
+	* @param target  Unused, backwards compatibility, cannot set direction
+	*/
 	public function getDepatures($num = NULL, $time = NULL, $date = NULL, $target = NULL) {
-		return $this->getStationBoard("dep", $num, $time, $date, $target);
+		return $this->getStationBoard("abfahrt", $num, $time, $date, $target);
 	}
+	/*
+	* @param num     Unused, backwards compatibility, getting all depatures within 1h by default
+	* @param time    Time as H:i
+	* @param date    Date as Y-m-d
+	* @param target  Unused, backwards compatibility, cannot set direction
+	*/
 	public function getArrivals($num = NULL, $time = NULL, $date = NULL, $target = NULL) {
-		return $this->getStationBoard("arr", $num, $time, $date, $target);
+		return $this->getStationBoard("ankunft", $num, $time, $date, $target);
 	}
 }
 
 class DeutscheBahn {
-	private function getStationXML($req, $num) {
-		$xml  = "<?xml version=\"1.0\" encoding=\"utf-8\" ?>\r\n";
-		$xml .= "<ReqC ver=\"1.1\" prod=\"String\" lang=\"DE\">\r\n";
-		$xml .= "<LocValReq id=\"001\" maxNr=\"{$num}\" sMode=\"1\">\r\n";
-		$xml .= $req."\r\n";
-		$xml .= "</LocValReq>\r\n";
-		$xml .= "</ReqC>";
-
-		$ch = curl_init("https://reiseauskunft.bahn.de/bin/query.exe/dn");
+	private function getStationJSON($json, $num) {
+		$headers = Array(
+			"User-Agent: Bahn-Foo",
+			"Content-Type: application/x.db.vendo.mob.location.v3+json",
+			"Accept: application/x.db.vendo.mob.location.v3+json",
+			"X-Correlation-ID: FOO",
+		);
+		$ch = curl_init("https://app.vendo.noncd.db.de/mob/location/search");
+		curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-		curl_setopt($ch, CURLOPT_POSTFIELDS, $xml);
+		curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+		curl_setopt($ch, CURLOPT_POSTFIELDS, $json);
 		$ret = curl_exec($ch);
 
-		$parser = xml_parser_create();
-		xml_parse_into_struct($parser, $ret, $values);
-		xml_parser_free($parser);
-
+		$jsonStations = json_decode($ret);
 		$stations = Array();
-		foreach ($values as $value) {
-			if ($value["tag"] == "STATION") {
-				$att = $value["attributes"];
+		foreach ($jsonStations as $jsonStation) {
+			if ($jsonStation->locationType == "ST") {
 				$stations[] = new DeutscheBahnStation(
-					$att["NAME"],
-					$att["EXTERNALID"],
-					$att["EXTERNALSTATIONNR"],
-					$att["X"],
-					$att["Y"],
-					$att["TYPE"]
+					$jsonStation->name,
+					(isset($jsonStation->stationId) ? $jsonStation->stationId : -1),
+					$jsonStation->locationId,
+					$jsonStation->coordinates,
+					$jsonStation->products,
+					$jsonStation->locationType,
+					$jsonStation->evaNr
 				);
 			}
 		}
 		return $stations;
 	}
 
+	/*
+	* @param name   Name of Station to query
+	* @param num    Unused, backwards compatibility
+	*/
 	public function getStationByName($name, $num=1) {
-		return $this->getStationXML("<ReqLoc type=\"ST\" match=\"{$name}\" />", $num);
+		$json = json_encode(Array(
+			"locationTypes" => Array(
+				"ST"
+			),
+			"searchTerm" => $name
+		));
+		return $this->getStationJSON($json, $num);
 	}
 }
