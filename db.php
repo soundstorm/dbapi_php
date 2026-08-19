@@ -27,13 +27,13 @@ class DeutscheBahnJourney {
 		$this->line         = substr($line, strpos($line, " ") + 1);
 	}
 	/*
-	* Get arrival/depature as DateTime
+	* Get arrival/departure as DateTime
 	*/
 	public function getTime() {
 		return $this->time;
 	}
 	/*
-	* Get real time arrival/depature as DateTime
+	* Get real time arrival/departure as DateTime
 	*/
 	public function getRealTime() {
 		return $this->realTime;
@@ -204,7 +204,7 @@ class DeutscheBahnStation {
 			$date = new DateTime();
 		}
 		$headers = Array(
-			"User-Agent: Bahn-Foo",
+			"User-Agent: DBNavigator/iOS/26.8.0",
 			"Content-Type: application/x.db.vendo.mob.verbindungssuche.v8+json",
 			"Accept: application/x.db.vendo.mob.verbindungssuche.v8+json",
 			"X-Correlation-ID: FOO",
@@ -242,18 +242,22 @@ class DeutscheBahnStation {
 		$req['reservierungsKontingenteVorhanden'] = false;
 		print_r($headers);
 		$json = json_encode($req);
-		$ch = curl_init("https://app.vendo.noncd.db.de/mob/angebote/fahrplan");
+		$ch = curl_init("https://app.services-bahn.de/mob/angebote/fahrplan");
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 		curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 		curl_setopt($ch, CURLOPT_POSTFIELDS, $json);
+		curl_setopt($ch, CURLOPT_SSL_EC_CURVES, 'X25519:P-256');
+ 		curl_setopt($ch, CURLOPT_SSL_CIPHER_LIST, 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-CHACHA20-POLY1305');
+ 		curl_setopt($ch, CURLOPT_TLS13_CIPHERS, 'TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_256_GCM_SHA384');
 		curl_setopt($ch, CURLOPT_VERBOSE, true);
+		curl_setopt($ch, CURLOPT_TIMEOUT, 20);
 		$ret = curl_exec($ch);
 		return Null;
 	}
 
 	/* Currently not working.
 	*/
-	public function getConnectionDepature($dest, $date = Null) {
+	public function getConnectionDeparture($dest, $date = Null) {
 		return $this->getJourney($dest, $date, "ABFAHRT");
 	}
 	/* Currently not working.
@@ -267,27 +271,31 @@ class DeutscheBahnStation {
 	*/
 	public function getLocation() {
 		$headers = Array(
-			"User-Agent: Bahn-Foo",
+			"User-Agent: DBNavigator/iOS/26.8.0",
 			"Accept: application/x.db.vendo.mob.location.v3+json",
 			"X-Correlation-ID: FOO",
 		);
-		$ch = curl_init("https://app.vendo.noncd.db.de/mob/location/details/".$this->evaNr);
+		$ch = curl_init("https://app.services-bahn.de/mob/location/details/".$this->evaNr);
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 		curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+		curl_setopt($ch, CURLOPT_SSL_EC_CURVES, 'X25519:P-256');
+ 		curl_setopt($ch, CURLOPT_SSL_CIPHER_LIST, 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-CHACHA20-POLY1305');
+ 		curl_setopt($ch, CURLOPT_TLS13_CIPHERS, 'TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_256_GCM_SHA384');
+		curl_setopt($ch, CURLOPT_TIMEOUT, 20);
 		$ret = curl_exec($ch);
 		return json_decode($ret);
 	}
 
 	/*
 	* @param type    ankunft|abfahrt
-	* @param num     Unused, backwards compatibility, getting all depatures within 1h by default
+	* @param num     Unused, backwards compatibility, getting all departures within 1h by default
 	* @param time    Time as H:i
 	* @param date    Date as Y-m-d
 	* @param target  Unused, backwards compatibility, cannot set direction
 	*/
 	private function getStationBoard($type, $num, $time, $date, $target) {
 		$headers = Array(
-			"User-Agent: Bahn-Foo",
+			"User-Agent: DBNavigator/iOS/26.8.0",
 			"Content-Type: application/x.db.vendo.mob.bahnhofstafeln.v2+json",
 			"Accept: application/x.db.vendo.mob.bahnhofstafeln.v2+json",
 			"X-Correlation-ID: FOO",
@@ -306,10 +314,14 @@ class DeutscheBahnStation {
 		$req['ursprungsBahnhofId'] = $this->locationId;
 		$req['verkehrsmittel'] = $this->filter;
 		$json = json_encode($req);
-		$ch = curl_init("https://app.vendo.noncd.db.de/mob/bahnhofstafel/".$type);
+		$ch = curl_init("https://app.services-bahn.de/mob/bahnhofstafel/".$type);
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 		curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 		curl_setopt($ch, CURLOPT_POSTFIELDS, $json);
+		curl_setopt($ch, CURLOPT_SSL_EC_CURVES, 'X25519:P-256');
+ 		curl_setopt($ch, CURLOPT_SSL_CIPHER_LIST, 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-CHACHA20-POLY1305');
+ 		curl_setopt($ch, CURLOPT_TLS13_CIPHERS, 'TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_256_GCM_SHA384');
+		curl_setopt($ch, CURLOPT_TIMEOUT, 20);
 		$ret = curl_exec($ch);
 
 		$jsonJourneys = json_decode($ret);
@@ -318,6 +330,7 @@ class DeutscheBahnStation {
 		} else {
 			$jsonJourneys = $jsonJourneys->bahnhofstafelAbfahrtPositionen;
 		}
+		$journeys = Array();
 		foreach ($jsonJourneys as $jsonJourney) {
 			if ($type == "ankunft") {
 				$t = new DateTime($jsonJourney->ankunftsDatum);
@@ -368,16 +381,16 @@ class DeutscheBahnStation {
 	}
 
 	/*
-	* @param num     Unused, backwards compatibility, getting all depatures within 1h by default
+	* @param num     Unused, backwards compatibility, getting all departures within 1h by default
 	* @param time    Time as H:i
 	* @param date    Date as Y-m-d
 	* @param target  Unused, backwards compatibility, cannot set direction
 	*/
-	public function getDepatures($num = NULL, $time = NULL, $date = NULL, $target = NULL) {
+	public function getDepartures($num = NULL, $time = NULL, $date = NULL, $target = NULL) {
 		return $this->getStationBoard("abfahrt", $num, $time, $date, $target);
 	}
 	/*
-	* @param num     Unused, backwards compatibility, getting all depatures within 1h by default
+	* @param num     Unused, backwards compatibility, getting all departures within 1h by default
 	* @param time    Time as H:i
 	* @param date    Date as Y-m-d
 	* @param target  Unused, backwards compatibility, cannot set direction
@@ -390,16 +403,20 @@ class DeutscheBahnStation {
 class DeutscheBahn {
 	private function getStationJSON($json, $num) {
 		$headers = Array(
-			"User-Agent: Bahn-Foo",
+			"User-Agent: DBNavigator/iOS/26.8.0",
 			"Content-Type: application/x.db.vendo.mob.location.v3+json",
 			"Accept: application/x.db.vendo.mob.location.v3+json",
 			"X-Correlation-ID: FOO",
 		);
-		$ch = curl_init("https://app.vendo.noncd.db.de/mob/location/search");
+		$ch = curl_init("https://app.services-bahn.de/mob/location/search");
 		curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 		curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 		curl_setopt($ch, CURLOPT_POSTFIELDS, $json);
+		curl_setopt($ch, CURLOPT_SSL_EC_CURVES, 'X25519:P-256');
+ 		curl_setopt($ch, CURLOPT_SSL_CIPHER_LIST, 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-CHACHA20-POLY1305');
+ 		curl_setopt($ch, CURLOPT_TLS13_CIPHERS, 'TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_256_GCM_SHA384');
+		curl_setopt($ch, CURLOPT_TIMEOUT, 20);
 		$ret = curl_exec($ch);
 
 		$jsonStations = json_decode($ret);
