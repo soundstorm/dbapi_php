@@ -38,7 +38,7 @@ $station = $db->getStationByName($station)[0];
 			background: #FFFF00;
 			color: #000;
 		}
-		#depatures {
+		#departures {
 			display: table;
 			width: 100%;
 		}
@@ -75,14 +75,14 @@ $station = $db->getStationByName($station)[0];
 	<div id="time"><?php $tm = localtime();printf("%02d:%02d", $tm[2], $tm[1]);?></div>
 	<div id="name"><?=$station->getName()?></div>
 </div>
-<div id="depatures">
+<div id="departures">
 	<div class="top">
 		<div class="time">Zeit</div>
 		<div class="dest">Nach</div>
 		<div class="plat">Gleis</div>
 	</div>
 <?php
-foreach ($station->getDepatures($numEntries) as $dep) {?>
+foreach ($station->getDepartures($numEntries) as $dep) {?>
 	<div class="dep">
 		<div class="time">
 			<div class="firstrow">
