@@ -12,7 +12,6 @@ trait DeutscheBahnApiRequest {
 		$ret = curl_exec($ch);
 		$curlError = curl_error($ch);
 		$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-		curl_close($ch);
 
 		if ($ret === false) {
 			throw new DeutscheBahnApiException("DB API nicht erreichbar: $curlError");
