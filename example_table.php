@@ -7,13 +7,23 @@ if (isset($_GET["station"])) {
 include("db.php");
 $numEntries = 12;
 
-$db = new DeutscheBahn();
-$station = $db->getStationByName($station)[0];
+$error = false;
+try {
+	$db = new DeutscheBahn();
+	$stations = $db->getStationByName($station);
+	if (empty($stations)) {
+		throw new DeutscheBahnApiException("Station '$station' nicht gefunden");
+	}
+	$station = $stations[0];
+	$departures = $station->getDepartures($numEntries);
+} catch (\Throwable $e) {
+	$error = true;
+}
 ?>
 <html>
 <head>
 	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-	<title>Abfahrtstafel <?=$station->getName()?></title>
+	<title>Abfahrtstafel <?=$error ? "" : $station->getName()?></title>
 	<meta http-equiv="refresh" content="60">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 	<style>
@@ -68,13 +78,20 @@ $station = $db->getStationByName($station)[0];
 		.plat.newPl, .time .eta, .delayCause {
 			color: #FFFF00;
 		}
+		#errorMsg {
+			text-align: center;
+			margin-top: 40px;
+		}
 	</style>
 </head>
 <body>
 <div id="header">
 	<div id="time"><?php $tm = localtime();printf("%02d:%02d", $tm[2], $tm[1]);?></div>
-	<div id="name"><?=$station->getName()?></div>
+	<div id="name"><?=$error ? "" : $station->getName()?></div>
 </div>
+<?php if ($error): ?>
+<div id="errorMsg">Auf Fahrziel der Züge achten</div>
+<?php else: ?>
 <div id="departures">
 	<div class="top">
 		<div class="time">Zeit</div>
@@ -82,7 +99,7 @@ $station = $db->getStationByName($station)[0];
 		<div class="plat">Gleis</div>
 	</div>
 <?php
-foreach ($station->getDepartures($numEntries) as $dep) {?>
+foreach ($departures as $dep) {?>
 	<div class="dep">
 		<div class="time">
 			<div class="firstrow">
@@ -100,5 +117,6 @@ foreach ($station->getDepartures($numEntries) as $dep) {?>
 	</div>
 <?php } ?>
 </div>
+<?php endif; ?>
 </body>
 </html>

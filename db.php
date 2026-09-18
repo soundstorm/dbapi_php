@@ -1,5 +1,34 @@
 <?php
 
+class DeutscheBahnApiException extends \RuntimeException {}
+
+trait DeutscheBahnApiRequest {
+	/*
+	* Run a prepared curl handle and decode its JSON response, or throw
+	* DeutscheBahnApiException if the request failed, returned a non-2xx
+	* status, or the body wasn't valid JSON.
+	*/
+	private function requestJson($ch) {
+		$ret = curl_exec($ch);
+		$curlError = curl_error($ch);
+		$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+		curl_close($ch);
+
+		if ($ret === false) {
+			throw new DeutscheBahnApiException("DB API nicht erreichbar: $curlError");
+		}
+		if ($httpCode < 200 || $httpCode >= 300) {
+			throw new DeutscheBahnApiException("DB API antwortete mit HTTP $httpCode");
+		}
+
+		$json = json_decode($ret);
+		if ($json === null && json_last_error() !== JSON_ERROR_NONE) {
+			throw new DeutscheBahnApiException("DB API lieferte ungültiges JSON: " . json_last_error_msg());
+		}
+		return $json;
+	}
+}
+
 class DeutscheBahnJourney {
 	private $time;
 	private $realTime;
@@ -17,14 +46,20 @@ class DeutscheBahnJourney {
 		$this->time         = $time;
 		$this->realTime     = $realTime;
 		$this->delay        = $delay;
-		$this->notes        = $notes;
+		$this->notes        = $notes ?? Array();
 		$this->platform     = $platform;
 		$this->newPlatform  = $newPlatform;
 		$this->depStation   = $depStation;
 		$this->target       = $target;
 		$this->product      = $product;
-		$this->productShort = substr($line, 0, strpos($line, " "));
-		$this->line         = substr($line, strpos($line, " ") + 1);
+		$spacePos = strpos((string)$line, " ");
+		if ($spacePos === false) {
+			$this->productShort = (string)$line;
+			$this->line         = "";
+		} else {
+			$this->productShort = substr($line, 0, $spacePos);
+			$this->line         = substr($line, $spacePos + 1);
+		}
 	}
 	/*
 	* Get arrival/departure as DateTime
@@ -122,6 +157,8 @@ class DeutscheBahnJourney {
 }
 
 class DeutscheBahnStation {
+	use DeutscheBahnApiRequest;
+
 	private $name;
 	private $stationId;
 	private $locationId;
@@ -250,7 +287,8 @@ class DeutscheBahnStation {
  		curl_setopt($ch, CURLOPT_SSL_CIPHER_LIST, 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-CHACHA20-POLY1305');
  		curl_setopt($ch, CURLOPT_TLS13_CIPHERS, 'TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_256_GCM_SHA384');
 		curl_setopt($ch, CURLOPT_VERBOSE, true);
-		curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+		curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+		curl_setopt($ch, CURLOPT_TIMEOUT, 10);
 		$ret = curl_exec($ch);
 		return Null;
 	}
@@ -281,9 +319,9 @@ class DeutscheBahnStation {
 		curl_setopt($ch, CURLOPT_SSL_EC_CURVES, 'X25519:P-256');
  		curl_setopt($ch, CURLOPT_SSL_CIPHER_LIST, 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-CHACHA20-POLY1305');
  		curl_setopt($ch, CURLOPT_TLS13_CIPHERS, 'TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_256_GCM_SHA384');
-		curl_setopt($ch, CURLOPT_TIMEOUT, 20);
-		$ret = curl_exec($ch);
-		return json_decode($ret);
+		curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+		curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+		return $this->requestJson($ch);
 	}
 
 	/*
@@ -321,15 +359,15 @@ class DeutscheBahnStation {
 		curl_setopt($ch, CURLOPT_SSL_EC_CURVES, 'X25519:P-256');
  		curl_setopt($ch, CURLOPT_SSL_CIPHER_LIST, 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-CHACHA20-POLY1305');
  		curl_setopt($ch, CURLOPT_TLS13_CIPHERS, 'TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_256_GCM_SHA384');
-		curl_setopt($ch, CURLOPT_TIMEOUT, 20);
-		$ret = curl_exec($ch);
+		curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+		curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+		$response = $this->requestJson($ch);
 
-		$jsonJourneys = json_decode($ret);
-		if ($type == "ankunft") {
-			$jsonJourneys = $jsonJourneys->bahnhofstafelAnkunftPositionen;
-		} else {
-			$jsonJourneys = $jsonJourneys->bahnhofstafelAbfahrtPositionen;
+		$field = $type == "ankunft" ? "bahnhofstafelAnkunftPositionen" : "bahnhofstafelAbfahrtPositionen";
+		if (!isset($response->$field) || !is_array($response->$field)) {
+			throw new DeutscheBahnApiException("DB API lieferte unerwartete Antwortstruktur");
 		}
+		$jsonJourneys = $response->$field;
 		$journeys = Array();
 		foreach ($jsonJourneys as $jsonJourney) {
 			if ($type == "ankunft") {
@@ -401,6 +439,8 @@ class DeutscheBahnStation {
 }
 
 class DeutscheBahn {
+	use DeutscheBahnApiRequest;
+
 	private function getStationJSON($json, $num) {
 		$headers = Array(
 			"User-Agent: DBNavigator/iOS/26.8.0",
@@ -416,10 +456,14 @@ class DeutscheBahn {
 		curl_setopt($ch, CURLOPT_SSL_EC_CURVES, 'X25519:P-256');
  		curl_setopt($ch, CURLOPT_SSL_CIPHER_LIST, 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-CHACHA20-POLY1305');
  		curl_setopt($ch, CURLOPT_TLS13_CIPHERS, 'TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_256_GCM_SHA384');
-		curl_setopt($ch, CURLOPT_TIMEOUT, 20);
-		$ret = curl_exec($ch);
+		curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+		curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+		$jsonStations = $this->requestJson($ch);
 
-		$jsonStations = json_decode($ret);
+		if (!is_array($jsonStations)) {
+			throw new DeutscheBahnApiException("DB API lieferte unerwartete Antwortstruktur");
+		}
+
 		$stations = Array();
 		foreach ($jsonStations as $jsonStation) {
 			if ($jsonStation->locationType == "ST") {
