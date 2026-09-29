@@ -4,11 +4,34 @@ class DeutscheBahnApiException extends \RuntimeException {}
 
 trait DeutscheBahnApiRequest {
 	/*
-	* Run a prepared curl handle and decode its JSON response, or throw
-	* DeutscheBahnApiException if the request failed, returned a non-2xx
-	* status, or the body wasn't valid JSON.
+	* Build and run a curl request against the DB API and decode its JSON
+	* response, or throw DeutscheBahnApiException if the request failed,
+	* returned a non-2xx status, or the body wasn't valid JSON.
+	* $postFields triggers a POST when given, otherwise a GET is sent.
+	* $headers only needs to carry request-specific headers (Content-Type,
+	* Accept); User-Agent and X-Correlation-ID are the same for every call
+	* and get added automatically.
 	*/
-	private function requestJson($ch) {
+	private function requestJson($url, array $headers, $postFields = null) {
+		$headers = array_merge(
+			Array(
+				"User-Agent: DBNavigator/iOS/26.12.1",
+				"X-Correlation-ID: FOO",
+			),
+			$headers
+		);
+
+		$ch = curl_init($url);
+		curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+		curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+		curl_setopt($ch, CURLOPT_SSL_CIPHER_LIST, 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-CHACHA20-POLY1305');
+		curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+		curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+		if ($postFields !== null) {
+			curl_setopt($ch, CURLOPT_POSTFIELDS, $postFields);
+		}
+
 		$ret = curl_exec($ch);
 		$curlError = curl_error($ch);
 		$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -17,7 +40,8 @@ trait DeutscheBahnApiRequest {
 			throw new DeutscheBahnApiException("DB API nicht erreichbar: $curlError");
 		}
 		if ($httpCode < 200 || $httpCode >= 300) {
-			throw new DeutscheBahnApiException("DB API antwortete mit HTTP $httpCode");
+			$body = trim(substr($ret, 0, 500));
+			throw new DeutscheBahnApiException("DB API antwortete mit HTTP $httpCode" . ($body !== "" ? ": $body" : ""));
 		}
 
 		$json = json_decode($ret);
@@ -240,10 +264,8 @@ class DeutscheBahnStation {
 			$date = new DateTime();
 		}
 		$headers = Array(
-			"User-Agent: DBNavigator/iOS/26.8.0",
 			"Content-Type: application/x.db.vendo.mob.verbindungssuche.v8+json",
 			"Accept: application/x.db.vendo.mob.verbindungssuche.v8+json",
-			"X-Correlation-ID: FOO",
 		);
 		$req = Array();
 		$req['bahnBonusInfo'] = Array(
@@ -276,19 +298,8 @@ class DeutscheBahnStation {
 			"reisendenTyp" => "ERWACHSENER"
 		);
 		$req['reservierungsKontingenteVorhanden'] = false;
-		print_r($headers);
 		$json = json_encode($req);
-		$ch = curl_init("https://app.services-bahn.de/mob/angebote/fahrplan");
-		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-		curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-		curl_setopt($ch, CURLOPT_POSTFIELDS, $json);
-		curl_setopt($ch, CURLOPT_SSL_EC_CURVES, 'X25519:P-256');
- 		curl_setopt($ch, CURLOPT_SSL_CIPHER_LIST, 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-CHACHA20-POLY1305');
- 		curl_setopt($ch, CURLOPT_TLS13_CIPHERS, 'TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_256_GCM_SHA384');
-		curl_setopt($ch, CURLOPT_VERBOSE, true);
-		curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
-		curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-		$ret = curl_exec($ch);
+		$this->requestJson("https://app.services-bahn.de/mob/angebote/fahrplan", $headers, $json);
 		return Null;
 	}
 
@@ -308,19 +319,9 @@ class DeutscheBahnStation {
 	*/
 	public function getLocation() {
 		$headers = Array(
-			"User-Agent: DBNavigator/iOS/26.8.0",
 			"Accept: application/x.db.vendo.mob.location.v3+json",
-			"X-Correlation-ID: FOO",
 		);
-		$ch = curl_init("https://app.services-bahn.de/mob/location/details/".$this->evaNr);
-		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-		curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-		curl_setopt($ch, CURLOPT_SSL_EC_CURVES, 'X25519:P-256');
- 		curl_setopt($ch, CURLOPT_SSL_CIPHER_LIST, 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-CHACHA20-POLY1305');
- 		curl_setopt($ch, CURLOPT_TLS13_CIPHERS, 'TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_256_GCM_SHA384');
-		curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
-		curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-		return $this->requestJson($ch);
+		return $this->requestJson("https://app.services-bahn.de/mob/location/details/".$this->evaNr, $headers);
 	}
 
 	/*
@@ -332,10 +333,8 @@ class DeutscheBahnStation {
 	*/
 	private function getStationBoard($type, $num, $time, $date, $target) {
 		$headers = Array(
-			"User-Agent: DBNavigator/iOS/26.8.0",
 			"Content-Type: application/x.db.vendo.mob.bahnhofstafeln.v2+json",
 			"Accept: application/x.db.vendo.mob.bahnhofstafeln.v2+json",
-			"X-Correlation-ID: FOO",
 		);
 		$req = Array();
 		if (is_null($date)) {
@@ -351,16 +350,7 @@ class DeutscheBahnStation {
 		$req['ursprungsBahnhofId'] = $this->locationId;
 		$req['verkehrsmittel'] = $this->filter;
 		$json = json_encode($req);
-		$ch = curl_init("https://app.services-bahn.de/mob/bahnhofstafel/".$type);
-		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-		curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-		curl_setopt($ch, CURLOPT_POSTFIELDS, $json);
-		curl_setopt($ch, CURLOPT_SSL_EC_CURVES, 'X25519:P-256');
- 		curl_setopt($ch, CURLOPT_SSL_CIPHER_LIST, 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-CHACHA20-POLY1305');
- 		curl_setopt($ch, CURLOPT_TLS13_CIPHERS, 'TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_256_GCM_SHA384');
-		curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
-		curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-		$response = $this->requestJson($ch);
+		$response = $this->requestJson("https://app.services-bahn.de/mob/bahnhofstafel/".$type, $headers, $json);
 
 		$field = $type == "ankunft" ? "bahnhofstafelAnkunftPositionen" : "bahnhofstafelAbfahrtPositionen";
 		if (!isset($response->$field) || !is_array($response->$field)) {
@@ -442,22 +432,10 @@ class DeutscheBahn {
 
 	private function getStationJSON($json, $num) {
 		$headers = Array(
-			"User-Agent: DBNavigator/iOS/26.8.0",
 			"Content-Type: application/x.db.vendo.mob.location.v3+json",
 			"Accept: application/x.db.vendo.mob.location.v3+json",
-			"X-Correlation-ID: FOO",
 		);
-		$ch = curl_init("https://app.services-bahn.de/mob/location/search");
-		curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
-		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-		curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-		curl_setopt($ch, CURLOPT_POSTFIELDS, $json);
-		curl_setopt($ch, CURLOPT_SSL_EC_CURVES, 'X25519:P-256');
- 		curl_setopt($ch, CURLOPT_SSL_CIPHER_LIST, 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-CHACHA20-POLY1305');
- 		curl_setopt($ch, CURLOPT_TLS13_CIPHERS, 'TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_256_GCM_SHA384');
-		curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
-		curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-		$jsonStations = $this->requestJson($ch);
+		$jsonStations = $this->requestJson("https://app.services-bahn.de/mob/location/search", $headers, $json);
 
 		if (!is_array($jsonStations)) {
 			throw new DeutscheBahnApiException("DB API lieferte unerwartete Antwortstruktur");
