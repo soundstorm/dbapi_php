@@ -75,13 +75,12 @@ class DeutscheBahnJourney {
 		$this->depStation   = $depStation;
 		$this->target       = $target;
 		$this->product      = $product;
-		$spacePos = strpos((string)$line, " ");
-		if ($spacePos === false) {
+		if (preg_match('/^(\p{L}+)\s*(.*)$/u', trim((string)$line), $m)) {
+			$this->productShort = $m[1];
+			$this->line         = $m[2];
+		} else {
 			$this->productShort = (string)$line;
 			$this->line         = "";
-		} else {
-			$this->productShort = substr($line, 0, $spacePos);
-			$this->line         = substr($line, $spacePos + 1);
 		}
 	}
 	/*
