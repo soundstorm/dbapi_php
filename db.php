@@ -26,6 +26,11 @@ trait DeutscheBahnApiRequest {
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 		curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 		curl_setopt($ch, CURLOPT_SSL_CIPHER_LIST, 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-CHACHA20-POLY1305');
+		// OpenSSL >= 3.5 offers a post-quantum key share by default, which the
+		// API blocks (HTTP 452 OPS_BLOCKED); restrict to the classic curves.
+		if (defined('CURLOPT_SSL_EC_CURVES')) {
+			curl_setopt($ch, CURLOPT_SSL_EC_CURVES, 'X25519:P-256:P-384');
+		}
 		curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
 		curl_setopt($ch, CURLOPT_TIMEOUT, 10);
 		if ($postFields !== null) {
