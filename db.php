@@ -25,7 +25,6 @@ trait DeutscheBahnApiRequest {
 		curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 		curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-		curl_setopt($ch, CURLOPT_SSL_CIPHER_LIST, 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-CHACHA20-POLY1305');
 		// OpenSSL >= 3.5 offers a post-quantum key share by default, which the
 		// API blocks (HTTP 452 OPS_BLOCKED); restrict to the classic curves.
 		if (defined('CURLOPT_SSL_EC_CURVES')) {
@@ -37,9 +36,26 @@ trait DeutscheBahnApiRequest {
 			curl_setopt($ch, CURLOPT_POSTFIELDS, $postFields);
 		}
 
+		// Verbose curl log (TLS handshake, headers) via error_log(); enable with
+		// define('DBAPI_DEBUG', true) before including this file or env DBAPI_DEBUG=1.
+		$debug = (defined('DBAPI_DEBUG') && DBAPI_DEBUG) || getenv('DBAPI_DEBUG');
+		if ($debug) {
+			$log = fopen('php://temp', 'w+');
+			curl_setopt($ch, CURLOPT_VERBOSE, true);
+			curl_setopt($ch, CURLOPT_STDERR, $log);
+		}
+
 		$ret = curl_exec($ch);
 		$curlError = curl_error($ch);
 		$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+		if ($debug) {
+			rewind($log);
+			error_log("DBAPI curl $url\n" . ($postFields !== null ? "body: $postFields\n" : "") . stream_get_contents($log)
+				. "libcurl " . curl_version()['version'] . ", " . curl_version()['ssl_version'] . "\n"
+				. "response: HTTP $httpCode " . substr((string)$ret, 0, 300));
+			fclose($log);
+		}
 
 		if ($ret === false) {
 			throw new DeutscheBahnApiException("DB API nicht erreichbar: $curlError");
